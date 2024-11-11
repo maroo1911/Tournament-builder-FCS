@@ -1,0 +1,267 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #ffffff;
+        }
+        .secondary-color {
+            color: #1E3A8A;
+        }
+        .secondary-bg {
+            background-color: #1E3A8A;
+        }
+    </style>
+</head>
+<body class="p-6">
+    <div class="container mx-auto">
+        <h1 class="text-4xl font-bold text-center secondary-color mb-8">Tournament Builder</h1>
+        
+        <div id="setup" class="mb-8">
+            <div class="mb-4">
+                <label for="numTeams" class="block text-lg font-medium text-gray-700">Number of Teams</label>
+                <input type="number" id="numTeams" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" min="2">
+            </div>
+            <div class="mb-4">
+                <label for="numGroups" class="block text-lg font-medium text-gray-700">Number of Groups</label>
+                <input type="number" id="numGroups" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" min="1">
+            </div>
+            <div class="mb-4">
+                <label for="numMatches" class="block text-lg font-medium text-gray-700">Number of Matches per Team in Group</label>
+                <input type="number" id="numMatches" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" min="1">
+            </div>
+            <button id="setupNext" class="secondary-bg text-white px-4 py-2 rounded-md">Next</button>
+        </div>
+
+        <div id="teamNames" class="hidden mb-8">
+            <h2 class="text-2xl font-bold secondary-color mb-4">Enter Team Names</h2>
+            <div id="teamInputs" class="mb-4"></div>
+            <button id="generateGroups" class="secondary-bg text-white px-4 py-2 rounded-md">Generate Groups</button>
+        </div>
+
+        <div id="tournament" class="hidden">
+            <h2 class="text-2xl font-bold secondary-color mb-4">Groups</h2>
+            <div id="groups" class="mb-8"></div>
+            <h2 class="text-2xl font-bold secondary-color mb-4">Upcoming Matches</h2>
+            <div id="matches" class="mb-8"></div>
+            <button id="determinePromotion" class="secondary-bg text-white px-4 py-2 rounded-md hidden">Determine Promotion</button>
+            <div id="promotedTeams" class="hidden mt-8">
+                <h2 class="text-2xl font-bold secondary-color mb-4">Promoted Teams</h2>
+                <ul id="promotedTeamsList" class="list-disc pl-5"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const setupNext = document.getElementById('setupNext');
+        const generateGroups = document.getElementById('generateGroups');
+        const determinePromotion = document.getElementById('determinePromotion');
+        const numTeamsInput = document.getElementById('numTeams');
+        const numGroupsInput = document.getElementById('numGroups');
+        const numMatchesInput = document.getElementById('numMatches');
+        const teamNamesDiv = document.getElementById('teamNames');
+        const teamInputsDiv = document.getElementById('teamInputs');
+        const tournamentDiv = document.getElementById('tournament');
+        const groupsDiv = document.getElementById('groups');
+        const matchesDiv = document.getElementById('matches');
+        const promotedTeamsDiv = document.getElementById('promotedTeams');
+        const promotedTeamsList = document.getElementById('promotedTeamsList');
+
+        let teams = [];
+        let groups = [];
+        let matches = [];
+        let groupStats = {};
+
+        setupNext.addEventListener('click', () => {
+            const numTeams = parseInt(numTeamsInput.value);
+            teamInputsDiv.innerHTML = '';
+            for (let i = 0; i < numTeams; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = `Team ${i + 1} Name`;
+                input.className = 'mt-1 block w-full p-2 border border-gray-300 rounded-md mb-2';
+                teamInputsDiv.appendChild(input);
+            }
+            teamNamesDiv.classList.remove('hidden');
+        });
+
+        generateGroups.addEventListener('click', () => {
+            const numTeams = parseInt(numTeamsInput.value);
+            const numGroups = parseInt(numGroupsInput.value);
+            const numMatches = parseInt(numMatchesInput.value);
+
+            teams = Array.from(teamInputsDiv.querySelectorAll('input')).map(input => input.value);
+            groups = Array.from({ length: numGroups }, () => []);
+            matches = [];
+            groupStats = {};
+
+            // Shuffle teams and distribute into groups
+            teams = teams.sort(() => Math.random() - 0.5);
+            teams.forEach((team, index) => {
+                groups[index % numGroups].push(team);
+                groupStats[team] = {
+                    matchesPlayed: 0,
+                    wins: 0,
+                    losses: 0,
+                    draws: 0,
+                    goalsFor: 0,
+                    goalsAgainst: 0,
+                    goalDifference: 0,
+                    totalPoints: 0
+                };
+            });
+
+            // Generate matches
+            groups.forEach(group => {
+                for (let i = 0; i < group.length; i++) {
+                    for (let j = i + 1; j < group.length; j++) {
+                        for (let k = 0; k < numMatches; k++) {
+                            matches.push({ team1: group[i], team2: group[j], group: group });
+                        }
+                    }
+                }
+            });
+
+            // Display groups
+            groupsDiv.innerHTML = '';
+            groups.forEach((group, index) => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'mb-4';
+                groupDiv.innerHTML = `
+                    <h3 class="text-xl font-bold secondary-color mb-2">Group ${index + 1}</h3>
+                    <table class="min-w-full bg-white border border-gray-300">
+                        <thead>
+                            <tr>
+                                <th class="py-2 px-4 border-b">Team</th>
+                                <th class="py-2 px-4 border-b">Matches Played</th>
+                                <th class="py-2 px-4 border-b">Wins</th>
+                                <th class="py-2 px-4 border-b">Losses</th>
+                                <th class="py-2 px-4 border-b">Draws</th>
+                                <th class="py-2 px-4 border-b">Goals For</th>
+                                <th class="py-2 px-4 border-b">Goals Against</th>
+                                <th class="py-2 px-4 border-b">Goal Difference</th>
+                                <th class="py-2 px-4 border-b">Total Points</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${group.map(team => `
+                                <tr id="stats-${team}">
+                                    <td class="py-2 px-4 border-b">${team}</td>
+                                    <td class="py-2 px-4 border-b">0</td>
+                                    <td class="py-2 px-4 border-b">0</td>
+                                    <td class="py-2 px-4 border-b">0</td>
+                                    <td class="py-2 px-4 border-b">0</td>
+                                    <td class="py-2 px-4 border-b">0</td>
+                                    <td class="py-2 px-4 border-b">0</td>
+                                    <td class="py-2 px-4 border-b">0</td>
+                                    <td class="py-2 px-4 border-b">0</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                groupsDiv.appendChild(groupDiv);
+            });
+
+            // Display matches
+            matchesDiv.innerHTML = '';
+            matches.forEach((match, index) => {
+                const matchDiv = document.createElement('div');
+                matchDiv.className = 'mb-4';
+                matchDiv.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="text-lg">${match.team1} vs ${match.team2}</div>
+                        <div>
+                            <input type="number" placeholder="Score 1" class="score1 w-16 p-2 border border-gray-300 rounded-md mr-2">
+                            <input type="number" placeholder="Score 2" class="score2 w-16 p-2 border border-gray-300 rounded-md mr-2">
+                            <button class="submit-score secondary-bg text-white px-4 py-2 rounded-md" data-team1="${match.team1}" data-team2="${match.team2}">Submit</button>
+                        </div>
+                    </div>
+                `;
+                matchesDiv.appendChild(matchDiv);
+            });
+
+            tournamentDiv.classList.remove('hidden');
+            determinePromotion.classList.remove('hidden');
+        });
+
+        matchesDiv.addEventListener('click', (event) => {
+            if (event.target.classList.contains('submit-score')) {
+                const team1 = event.target.getAttribute('data-team1');
+                const team2 = event.target.getAttribute('data-team2');
+                const score1 = parseInt(event.target.previousElementSibling.previousElementSibling.value);
+                const score2 = parseInt(event.target.previousElementSibling.value);
+
+                if (!isNaN(score1) && !isNaN(score2)) {
+                    updateStats(team1, team2, score1, score2);
+                    event.target.parentElement.parentElement.remove();
+                }
+            }
+        });
+
+        determinePromotion.addEventListener('click', () => {
+            promotedTeamsList.innerHTML = '';
+            groups.forEach(group => {
+                const sortedGroup = group.sort((a, b) => {
+                    if (groupStats[b].totalPoints !== groupStats[a].totalPoints) {
+                        return groupStats[b].totalPoints - groupStats[a].totalPoints;
+                    } else if (groupStats[b].goalDifference !== groupStats[a].goalDifference) {
+                        return groupStats[b].goalDifference - groupStats[a].goalDifference;
+                    } else {
+                        return groupStats[b].goalsFor - groupStats[a].goalsFor;
+                    }
+                });
+                promotedTeamsList.innerHTML += `<li>${sortedGroup[0]}</li><li>${sortedGroup[1]}</li>`;
+            });
+            promotedTeamsDiv.classList.remove('hidden');
+        });
+
+        function updateStats(team1, team2, score1, score2) {
+            groupStats[team1].matchesPlayed++;
+            groupStats[team2].matchesPlayed++;
+            groupStats[team1].goalsFor += score1;
+            groupStats[team2].goalsFor += score2;
+            groupStats[team1].goalsAgainst += score2;
+            groupStats[team2].goalsAgainst += score1;
+            groupStats[team1].goalDifference = groupStats[team1].goalsFor - groupStats[team1].goalsAgainst;
+            groupStats[team2].goalDifference = groupStats[team2].goalsFor - groupStats[team2].goalsAgainst;
+
+            if (score1 > score2) {
+                groupStats[team1].wins++;
+                groupStats[team2].losses++;
+                groupStats[team1].totalPoints += 3;
+            } else if (score1 < score2) {
+                groupStats[team2].wins++;
+                groupStats[team1].losses++;
+                groupStats[team2].totalPoints += 3;
+            } else {
+                groupStats[team1].draws++;
+                groupStats[team2].draws++;
+                groupStats[team1].totalPoints++;
+                groupStats[team2].totalPoints++;
+            }
+
+            updateGroupTable(team1);
+            updateGroupTable(team2);
+        }
+
+        function updateGroupTable(team) {
+            const statsRow = document.getElementById(`stats-${team}`);
+            statsRow.children[1].textContent = groupStats[team].matchesPlayed;
+            statsRow.children[2].textContent = groupStats[team].wins;
+            statsRow.children[3].textContent = groupStats[team].losses;
+            statsRow.children[4].textContent = groupStats[team].draws;
+            statsRow.children[5].textContent = groupStats[team].goalsFor;
+            statsRow.children[6].textContent = groupStats[team].goalsAgainst;
+            statsRow.children[7].textContent = groupStats[team].goalDifference;
+            statsRow.children[8].textContent = groupStats[team].totalPoints;
+        }
+    </script>
+</body>
+</html>
